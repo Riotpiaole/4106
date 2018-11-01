@@ -1,0 +1,7 @@
+.vscode
+.DS_Store
+*.pyc
+.env/*
+.ipynb_checkpoints
+proposal.md
+cifar-10-batches-py
