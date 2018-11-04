@@ -5,6 +5,7 @@ import math
 from torchsummary import summary
 import torch.nn.init as init
 
+# Code retrieved from https://github.com/MIVRC/MSRN-PyTorch
 
 # --------------------------MSRB------------------------------- #
 
@@ -148,6 +149,9 @@ class MSRN(nn.Module):
         out = self.conv_output(out)
         return out
 
+def train( training_data_loader , optimizer , model , criterion , epoch):
+    pass
 
+# testing  on code
 if __name__ == "__main__":
     model = MSRB_Block()
