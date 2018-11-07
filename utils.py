@@ -64,7 +64,7 @@ def rgb_to_bgr(img):
 
 
 def bgr_to_ycrcb(img):
-    return cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB)
+    return cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
 
 
 def showImage(img, name="Output_Image"):
@@ -75,4 +75,15 @@ def showImage(img, name="Output_Image"):
 
 
 def rgb_to_ycrcb(img):
-    return bgr_to_ycrcb(rgb_to_bgr(x))
+    return bgr_to_ycrcb(rgb_to_bgr(img))
+
+
+def rgb_to_ycrcb_channel_first(image, upscale=2):
+
+    yCrCb_image = cv2.cvtColor(
+        image.astype(np.uint8),
+        cv2.COLOR_RGB2YCrCb)
+    y, Cr, Cb = np.dsplit((yCrCb_image), 3)
+    h, w = y.shape[:2]
+    y = np.array([cv2.resize(y, (h * upscale, w * upscale))])
+    return y.astype(np.float64)

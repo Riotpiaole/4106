@@ -1,9 +1,10 @@
-import torch
-import torch.nn as nn
-import numpy as np
 import math
-from torchsummary import summary
+import torch
+import numpy as np
+import torch.nn as nn
 import torch.nn.init as init
+
+from torchsummary import summary
 
 # Code retrieved from https://github.com/MIVRC/MSRN-PyTorch
 
@@ -149,8 +150,8 @@ class MSRN(nn.Module):
         out = self.conv_output(out)
         return out
 
-def train( training_data_loader , optimizer , model , criterion , epoch):
-    pass
+
+
 
 # testing  on code
 if __name__ == "__main__":

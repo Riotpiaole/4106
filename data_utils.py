@@ -1,17 +1,21 @@
-import numpy as np
 import os
-
-from scipy.misc import imread
-
 import platform
+import cv2
+import numpy as np
 
+import torch
+from scipy.misc import imread
+from multiprocessing import Process
+from torch.utils.data import Dataset
 from six.moves import cPickle as pickle
+
 from utils import (
-    multi_process_wrapper,
-    bgr_to_ycrcb,
+    showImage,
     rgb_to_bgr,
     bgr_to_rgb,
-    showImage
+    bgr_to_ycrcb,
+    multi_process_wrapper,
+    rgb_to_ycrcb_channel_first,
 )
 
 
@@ -232,9 +236,27 @@ def load_tiny_imagenet(path, dtype=np.float32, subtract_mean=True):
     }
 
 
+class DataSets(Dataset):
+    def __init__(self):
+        super().__init__()
+        self.dataset = get_CIFAR10_data(
+            subtract_mean=False, channel_first=False)
+        self.data = self.dataset['X_train']
+        self.label = self.dataset['X_train']
+
+    def __getitem__(self, index):
+        return torch.from_numpy(
+            rgb_to_ycrcb_channel_first(self.data[index, :, :, :], upscale=1)).float(), \
+            torch.from_numpy(
+                rgb_to_ycrcb_channel_first(self.data[index, :, :, :])).float()
+
+    def __len__(self):
+        return self.data.shape[0]
+
+
 # Testing
 if __name__ == "__main__":
-    data = get_CIFAR10_data(
-        subtract_mean=False,
-        channel_first=False,
-    )
+    datas = DataSets()
+    x, y = datas.__getitem__(10)
+    print(x.shape)
+    print(y.shape)
