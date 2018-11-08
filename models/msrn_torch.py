@@ -10,6 +10,7 @@ from torchsummary import summary
 
 # --------------------------MSRB------------------------------- #
 
+
 class MSRB_Block(nn.Module):
     def __init__(self):
         super(MSRB_Block, self).__init__()
@@ -150,9 +151,12 @@ class MSRN(nn.Module):
         out = self.conv_output(out)
         return out
 
-
+    def summary(self, input_size=(1, 32, 32)):
+        return summary(self, input_size)
 
 
 # testing  on code
 if __name__ == "__main__":
-    model = MSRB_Block()
+    model = MSRN()
+    model.summary()
+    # summary(model,(1,32,32))

@@ -18,6 +18,8 @@ from utils import (
     rgb_to_ycrcb_channel_first,
 )
 
+global datasets
+
 
 def load_pickle(f):
     version = platform.python_version_tuple()
@@ -55,13 +57,39 @@ def load_CIFAR10(ROOT):
     return Xtr, Ytr, Xte, Yte
 
 
+def normalizes(data, subtract_mean=True, channel_first=True):
+    X_train, X_test, X_val = data['X_train'], data['X_test'], data['X_val']
+    # Normalize the data: subtract the mean image
+    if subtract_mean:
+
+        mean_image = np.mean(X_train, axis=0)
+        X_train -= mean_image
+        X_val -= mean_image
+        X_test -= mean_image
+
+        # performan standard deviation and normalization
+        # std_image = np.mean(X_train, axis=0)
+        # X_train /= std_image
+        # X_val /= std_image
+        # X_test /= std_image
+
+    # Transpose so that channels come first
+    if channel_first:
+        X_train = X_train.transpose(0, 3, 1, 2).copy()
+        X_val = X_val.transpose(0, 3, 1, 2).copy()
+        X_test = X_test.transpose(0, 3, 1, 2).copy()
+    else:
+        X_train = X_train.transpose(0, 1, 2, 3).copy()
+        X_val = X_val.transpose(0, 1, 2, 3).copy()
+        X_test = X_test.transpose(0, 1, 2, 3).copy()
+
+
 def get_CIFAR10_data(
         num_training=49000,
         num_validation=1000,
         num_test=1000,
         subtract_mean=True,
-        channel_first=True,
-        ycrcb=True):
+        channel_first=True):
     """
     Load the CIFAR-10 dataset from disk and perform preprocessing to prepare
     it for classifiers. These are the same steps as we used for the SVM, but
@@ -82,29 +110,16 @@ def get_CIFAR10_data(
     X_test = X_test[mask]
     y_test = y_test[mask]
 
-    # Normalize the data: subtract the mean image
-    if subtract_mean:
-        mean_image = np.mean(X_train, axis=0)
-        X_train -= mean_image
-        X_val -= mean_image
-        X_test -= mean_image
-
-    # Transpose so that channels come first
-    if channel_first:
-        X_train = X_train.transpose(0, 3, 1, 2).copy()
-        X_val = X_val.transpose(0, 3, 1, 2).copy()
-        X_test = X_test.transpose(0, 3, 1, 2).copy()
-    else:
-        X_train = X_train.transpose(0, 1, 2, 3).copy()
-        X_val = X_val.transpose(0, 1, 2, 3).copy()
-        X_test = X_test.transpose(0, 1, 2, 3).copy()
-
-    # Package data into a dictionary
-    return {
+    all_datas = {
         'X_train': X_train, 'y_train': y_train,
         'X_val': X_val, 'y_val': y_val,
         'X_test': X_test, 'y_test': y_test,
     }
+
+    normalizes(all_datas, subtract_mean, channel_first)
+
+    # Package data into a dictionary
+    return all_datas
 
 
 def load_tiny_imagenet(path, dtype=np.float32, subtract_mean=True):
@@ -236,19 +251,35 @@ def load_tiny_imagenet(path, dtype=np.float32, subtract_mean=True):
     }
 
 
+datasets = get_CIFAR10_data()
+
+
 class DataSets(Dataset):
-    def __init__(self):
+    def __init__(self, dense=False, dataset='train'):
         super().__init__()
-        self.dataset = get_CIFAR10_data(
-            subtract_mean=False, channel_first=False)
-        self.data = self.dataset['X_train']
-        self.label = self.dataset['X_train']
+        variable_space = ['train', 'test', 'val']
+        assert dataset in variable_space,\
+            "Invalid Flag for %s the variable space is %s" % (
+                dataset, variable_space)
+        normalizes(datasets, dense, dense)
+        self.dense = dense
+        self.data = datasets['X_' + dataset].copy()
+        self.label = datasets['X_' + dataset].copy() if not dense \
+            else datasets['y_' + dataset].copy()
 
     def __getitem__(self, index):
+        if self.dense:
+            return torch.from_numpy(
+                self.data[index]).float(), torch.from_numpy(
+                np.array([self.label[index]]))
+
         return torch.from_numpy(
-            rgb_to_ycrcb_channel_first(self.data[index, :, :, :], upscale=1)).float(), \
+            rgb_to_ycrcb_channel_first(
+                self.data[index, :, :, :],
+                upscale=1)).float(), \
             torch.from_numpy(
-                rgb_to_ycrcb_channel_first(self.data[index, :, :, :])).float()
+            rgb_to_ycrcb_channel_first(
+                self.label[index, :, :, :])).float()
 
     def __len__(self):
         return self.data.shape[0]
@@ -256,7 +287,22 @@ class DataSets(Dataset):
 
 # Testing
 if __name__ == "__main__":
-    datas = DataSets()
-    x, y = datas.__getitem__(10)
-    print(x.shape)
-    print(y.shape)
+    # testing for obtain densenet dataset
+    dataset = DataSets(dense=True)
+    x, y = dataset.__getitem__(10)
+    print(x.shape, y.shape, len(dataset))
+
+    # testing for obtain msrn dataset
+    msrn_dataset = DataSets(dense=False)
+    x, y = msrn_dataset.__getitem__(10)
+    print(x.shape, y.shape, len(msrn_dataset))
+
+    msrn_dataset = DataSets(dense=False, dataset="test")
+    x, y = msrn_dataset.__getitem__(10)
+    print(x.shape, y.shape, len(msrn_dataset))
+
+    msrn_dataset = DataSets(dense=False, dataset="val")
+    x, y = msrn_dataset.__getitem__(10)
+    print(x.shape, y.shape, len(msrn_dataset))
+    # testing for obtain validation dataset
+    del datasets
