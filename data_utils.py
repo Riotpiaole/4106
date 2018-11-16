@@ -266,20 +266,24 @@ class DataSets(Dataset):
         self.data = datasets['X_' + dataset].copy()
         self.label = datasets['X_' + dataset].copy() if not dense \
             else datasets['y_' + dataset].copy()
+        if not dense:
+            self.classes = datasets['y_' + dataset].copy()
 
     def __getitem__(self, index):
         if self.dense:
+            # label = np.array([0 for i in range(10)])
+            # label[self.label[index]] = 1
             return torch.from_numpy(
-                self.data[index]).float(), torch.from_numpy(
-                np.array([self.label[index]]))
-
-        return torch.from_numpy(
-            rgb_to_ycrcb_channel_first(
-                self.data[index, :, :, :],
-                upscale=1)).float(), \
-            torch.from_numpy(
-            rgb_to_ycrcb_channel_first(
-                self.label[index, :, :, :])).float()
+                self.data[index].transpose((2, 0, 1)).copy()
+            ).float(), self.label[index]
+        y, cr, cb = rgb_to_ycrcb_channel_first(
+            self.data[index, :, :, :],
+            upscale=1)
+        y_label, _, _ = rgb_to_ycrcb_channel_first(
+            self.label[index, :, :, :])
+        return torch.from_numpy(y).float(), cr, cb,\
+            self.classes[index],\
+            torch.from_numpy(y_label).float()
 
     def __len__(self):
         return self.data.shape[0]
@@ -294,15 +298,15 @@ if __name__ == "__main__":
 
     # testing for obtain msrn dataset
     msrn_dataset = DataSets(dense=False)
-    x, y = msrn_dataset.__getitem__(10)
+    x, cr, cb, y = msrn_dataset.__getitem__(10)
     print(x.shape, y.shape, len(msrn_dataset))
 
     msrn_dataset = DataSets(dense=False, dataset="test")
-    x, y = msrn_dataset.__getitem__(10)
+    x, cr, cb, y = msrn_dataset.__getitem__(10)
     print(x.shape, y.shape, len(msrn_dataset))
 
     msrn_dataset = DataSets(dense=False, dataset="val")
-    x, y = msrn_dataset.__getitem__(10)
+    x, cr, cb, y = msrn_dataset.__getitem__(10)
     print(x.shape, y.shape, len(msrn_dataset))
     # testing for obtain validation dataset
     del datasets

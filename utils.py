@@ -1,5 +1,7 @@
+import sys
 import cv2
 import numpy as np
+from PIL import Image
 from multiprocessing import Process
 
 
@@ -86,4 +88,23 @@ def rgb_to_ycrcb_channel_first(image, upscale=2):
     y, Cr, Cb = np.dsplit((yCrCb_image), 3)
     h, w = y.shape[:2]
     y = np.array([cv2.resize(y, (h * upscale, w * upscale))])
-    return y.astype(np.float64)
+    return y.astype(np.float64), Cr, Cb
+
+
+def ycrcb2rgb(yf, cr, cb):
+    result = []
+    for (y_c, cr_c, cb_c) in zip(yf, cr, cb):
+
+        y = y_c.detach().cpu().numpy() * 255.0
+        cr = cr_c.detach().cpu().numpy()
+        cb = cb_c.detach().cpu().numpy()
+
+        y = y.clip(0, 255).astype(np.uint8)
+        cr = np.array([cv2.resize(cr, (y.shape[1:]))])
+        cb = np.array([cv2.resize(cb, (y.shape[1:]))])
+
+        image = np.vstack((y, cb, cr)).astype(np.float32)
+        image -= (255.0 / 2)
+
+        result.append(image)
+    return np.array(result)

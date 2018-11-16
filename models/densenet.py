@@ -15,6 +15,9 @@ import torchvision.models as models
 import sys
 import math
 
+global pool_size
+
+
 class Bottleneck(nn.Module):
     def __init__(self, nChannels, growthRate):
         super(Bottleneck, self).__init__()
@@ -66,8 +69,12 @@ class DenseNet(nn.Module):
             depth=100,
             reduction=0.5,
             nClasses=10,
-            bottleneck=True):
+            bottleneck=True,
+            upscale=1):
         super(DenseNet, self).__init__()
+
+        # upscale for avg_pooling layer
+        self.upscale = upscale * 8
 
         nDenseBlocks = (depth - 4) // 3
         if bottleneck:
@@ -93,7 +100,6 @@ class DenseNet(nn.Module):
         self.dense3 = self._make_dense(
             nChannels, growthRate, nDenseBlocks, bottleneck)
         nChannels += nDenseBlocks * growthRate
-
         self.bn1 = nn.BatchNorm2d(nChannels)
         self.fc = nn.Linear(nChannels, nClasses)
 
@@ -122,14 +128,28 @@ class DenseNet(nn.Module):
         out = self.trans1(self.dense1(out))
         out = self.trans2(self.dense2(out))
         out = self.dense3(out)
-        out = torch.squeeze(F.avg_pool2d(F.relu(self.bn1(out)), 8))
-        out = F.log_softmax(self.fc(out),dim=1)
+        out = self.bn1(out)
+        out = F.relu(out)
+        out = F.avg_pool2d(out, self.upscale)
+        out = torch.squeeze(out)
+        out = F.log_softmax(self.fc(out), dim=1)
         return out
 
-    def summary(self, input_size=(3, 32, 32)):
+    def summary(self):
+        image_rec =32*self.upscale//8
+        print(self.upscale)
+        input_size=(3, image_rec , image_rec)
         return summary(self, input_size)
 
 
 if __name__ == "__main__":
-    model = DenseNet(12, 100, 0.5, 10, True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = DenseNet(
+        growthRate=12,
+        depth=101,
+        reduction=0.50,
+        nClasses=10,
+        bottleneck=True,
+        upscale=2
+    ).to(device)
     model.summary()

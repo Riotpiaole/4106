@@ -11,11 +11,74 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
 
-from data_utils import DataSets
+from data_utils import DataSets, datasets
 from models.msrn_torch import MSRN
 from models.densenet import DenseNet
+from utils import ycrcb2rgb
 
-global net
+
+def test_dense(testing_data_loader,
+               optimizer,
+               model,
+               criterion,
+               epoch,
+               test_log,
+               GPU=True):
+    model.eval()
+    test_loss = 0
+    incorrect = 0
+    for data, target in testing_data_loader:
+        if GPU:
+            data, target = data.cuda(), target.cuda()
+
+        data, target = Variable(data, volatile=True), Variable(target)
+        output = model(data)
+        test_loss += nn.functional.nll_loss(output, target).item()
+        pred = output.data.max(1)[1]
+        incorrect += pred.ne(target.data).cpu().sum()
+
+    test_loss /= len(testing_data_loader)
+    nTotal = len(testing_data_loader.dataset)
+    err = 100. * incorrect / nTotal
+    print('\nTest set: Average loss: {:.4f}, Error: {}/{} ({:.0f}%)\n'.format(
+        test_loss, incorrect, nTotal, err))
+
+    test_log.write('{},{:.4f},{:.0f}\n'.format(epoch, test_loss, err))
+    test_log.flush()
+
+
+def test_msrn(testing_data_loader,
+              optimizer,
+              model,
+              criterion,
+              epoch,
+              test_log,
+              GPU=True,
+              discriminator=None):
+    model.eval()
+    test_loss = 0
+    for batch in testing_data_loader:
+        target_loc = len(batch) - 2 if discriminator else len(batch) - 1
+        data = batch[0]
+        if discriminator:
+            data, _ = adverstial_training(batch, discriminator)
+        target = batch[target_loc]
+
+        if GPU:
+            data, target = data.cuda(), target.cuda()
+
+        data, target = Variable(data), Variable(target)
+
+        output = model(data)
+        test_loss += nn.L1Loss(
+            reduction='elementwise_mean')(
+            output, target).item()
+
+    test_loss /= len(testing_data_loader)
+    print('\nTest set: Average loss: {:.4f}\n'.format(test_loss))
+
+    test_log.write('{},{:.4f}\n'.format(epoch, test_loss))
+    test_log.flush()
 
 
 def main(
@@ -28,24 +91,26 @@ def main(
         optimizer="adam"):
 
     assert model_name.lower() in [
-        "msrn", "densenet"], "Model not available only support msrn and densenet"
+        "msrn", "densenet", "densenet64"], "Model not available only support msrn and densenet"
 
-    net = model_name.lower()
+    discriminator = None
 
     model_name = model_name.lower()
+    dense = True if model_name == "densenet" else False
 
     # loading all of the data
     training_data_loader = DataLoader(
-        dataset=DataSets(),
+        dataset=DataSets(dense=dense),
         batch_size=32)
 
     testing_data_loader = DataLoader(
-        dataset=DataSets(dataset='test'),
+        dataset=DataSets(dense=dense, dataset='test'),
         batch_size=5)
 
-    validation_data_loader = DataLoader(
-        dataset=DataSets(dataset='val'),
-        batch_size=5)
+    # validation_data_loader = DataLoader(
+    #     dataset=DataSets(dataset='val'),
+    #     batch_size=5)
+
     print("==================================================")
     # checking for model type
     print("Model: " + model_name + " with loss: ", end="")
@@ -54,18 +119,26 @@ def main(
         model = MSRN()
         criterion = nn.L1Loss(reduction='elementwise_mean')
         print(" L1 loss")
-    else:
+    elif model_name == "densenet64":
+        model = DenseNet(upscale=2)
+        discriminator = MSRN()
+        criterion = nn.functional.nll_loss
+    elif model_name == "densenet":
         model = DenseNet()
         # this can be tested with cross entropy
         # criterion = nn.CrossEntropyLoss
         criterion = nn.functional.nll_loss
         print(" negative Log loss")
+    else:
+        raise ValueError(
+            "Invalid model_name not support {}".format(model_name))
 
     # check for GPU support
     print("Using GPU:  " + str(GPU))
     if GPU:
         model = nn.DataParallel(model).cuda()
-        criterion = criterion.cuda()
+        if model_name == "msrn":
+            criterion = criterion.cuda()
     else:
         model = model.cpu()
 
@@ -91,38 +164,55 @@ def main(
     else:
         raise ValueError("Not supported Loss function")
     print("==================================================")
-    model.summary()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if model_name == 'msrn':
+        MSRN().to(device).summary()
+    elif model_name == 'densenet64':
+        DenseNet(upscale=2).to(device).summary()
+    else:
+        DenseNet().to(device).summary()
     print("==================================================")
-    log_folder = 'Logs'
+    log_folder = 'Logs/' + model_name
 
     # Loggering the training loss
     if not os.path.isdir(log_folder):
-        os.mkdir(log_folder)
-
-    train_log = open(os.path.join(log_folder, 'train.csv'), 'w')
-    test_log = open(os.path.join(log_folder, 'test.csv'), 'w')
-    val_log = open(os.path.join(log_folder, 'val.csv'), 'w')
-
+        os.makedirs(log_folder)
+    model.name = model_name
+    train_log = open(os.path.join(log_folder, 'train.csv'), 'wr')
+    test_log = open(os.path.join(log_folder, 'test.csv'), 'wr')
+    val_log = open(os.path.join(log_folder, 'val.csv'), 'wr')
     # Training in numbers of epochs
     for epoch in range(0, epochs):
-        try:  # try to catch interruption during training
-            train(
-                training_data_loader,
-                testing_data_loader,
-                validation_data_loader,
-                optimizer,
-                model,
-                criterion,
-                epoch,
-                train_log,
-                test_log,
-                val_log,
-                GPU)
-        except KeyboardInterrupt:
-            pass
-            # save_checkpoint(model, epoch, model_name)
-
-        # save_checkpoint(model, epoch, model_name)
+        train(
+            training_data_loader,
+            optimizer,
+            model,
+            criterion,
+            epoch,
+            train_log,
+            GPU,
+            discriminator if discriminator else None)  # if running on 64
+        # densenet
+        print('testing the model')
+        if model_name == "densenet":
+            test_dense(testing_data_loader,
+                       optimizer,
+                       model,
+                       criterion,
+                       epoch,
+                       test_log,
+                       GPU)
+        else:
+            test_msrn(testing_data_loader,
+                      optimizer,
+                      model,
+                      criterion,
+                      epoch,
+                      test_log,
+                      GPU,
+                      discriminator=discriminator if discriminator else None)
+        save_checkpoint(model, epoch, model_name)
 
     train_log.close()
     test_log.close()
@@ -141,27 +231,60 @@ def save_checkpoint(model, epoch, model_dir):
     print("Checkpoint saved to {} ".format(model_out_path))
 
 
+def load_model(model_dir, epochs=20):
+    model_path = "Weights/" + model_dir + "/" + str(epochs - 1) + ".pth"
+    if os.path.isfile(model_path):
+        print(
+            "= loading pretrianed model '{}' epochs {} ".format(
+                model_dir, epochs))
+        weights = torch.load(model_path)
+        return weights
+    else:
+        raise FileNotFoundError("= no model found at '{}'".format(model_path))
+
+
+def adverstial_training(batch, discrminator):
+    x, cr, cb, y, _ = batch
+    y_disc = discrminator.forward(x)
+    X_disc = torch.from_numpy(ycrcb2rgb(y_disc, cr, cb)).float()
+    return X_disc, y
+
+
 def train(
         training_data_loader,
-        test_data_loader,
-        validation_data_loader,
         optimizer,
         model,
         criterion,
         epoch,
         train_log,
-        test_log,
-        val_log,
-        GPU=True):
+        GPU=True,
+        discriminator=None):
     print("epoch =", epoch, "lr =", optimizer.param_groups[0]["lr"])
 
     model.train()
     nProcessed = 0
+
+    # Loading discrminator for superresolutioning the image
+    if discriminator:
+        # loading model_weights
+        try:
+            weights = load_model('msrn')
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                "No pretrainied Model Found. Please trained MSRN first")
+
+        discrminator = nn.DataParallel(discrminator).cuda()
+        discrminator.load_state_dict(weights['model'].state_dict())
+
     for iteration, batch in enumerate(training_data_loader, 1):
 
-        input, label = Variable(
-            batch[0]), Variable(
-            batch[1], requires_grad=False)
+        if model.name == "densenet64":
+            input, label = adverstial_training(batch, discriminator)
+            input, label = Variable(input),\
+                Variable(label, requires_grad=False)
+        else:
+            input, label = Variable(batch[0]),\
+                Variable(batch[len(batch) - 1], requires_grad=False)
 
         size = len(batch[0])
 
@@ -171,12 +294,13 @@ def train(
             label = label.cuda()
 
         output = model(input)
+
         loss = criterion(output, label)
 
+        # backward propagation
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         nProcessed += len(input)
         progress = epoch + iteration / len(training_data_loader) - 1
 
@@ -189,27 +313,29 @@ def train(
                     len(training_data_loader.dataset),
                     100. *
                     iteration /
-                    len(training_data_loader)),
-                end="")
-            if net == "dense":
-                dense_loggering(loss, output, label, size)
+                    len(training_data_loader)), end="")
+            train_log.write('{:.2f}'.format(progress))
+            if model.name == "densenet" or model.name == "densenet64":
+                dense_loggering(loss, output, label, size, train_log)
             else:
-                msrn_loggering(loss, output, label, size)
+                msrn_loggering(loss, output, label, size, train_log)
+            train_log.flush()
 
 
-def dense_loggering(loss, output, target, size):
+def dense_loggering(loss, output, target, size, train_log):
     pred = output.data.max(1)[1]  # get index of max log probability
     incorrect = pred.ne(target.data).cpu().sum()
     err = 100. * incorrect / size
-    print('\tLoss {:.6f}\tError {:.6f}'.format(
-        loss.data[0], err))
+    print(' Loss {:.6f} Error {:.6f}'.format(
+        loss.item(), err), end="\r")
+    train_log.write('{},{}\n'.format(loss.item(), err))
 
 
-def msrn_loggering(loss, output, target, size):
-    print("\tLoss: {:.6f}".format(loss.data[0]))
+def msrn_loggering(loss, output, target, size, train_log):
+    print(" Loss: {:.6f}".format(loss.item()), end="\r")
+    train_log.write(',:Loss{:.6f}\n'.format(loss.item()))
 
 
 if __name__ == "__main__":
-    main(GPU=False, model_name='densenet')
-
+    main(GPU=True, model_name='densenet64')
     del datasets

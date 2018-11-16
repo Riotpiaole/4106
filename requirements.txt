@@ -2,5 +2,6 @@ scipy
 torch
 torchvision
 torchsummary
+pillow
 keras==2.2.1
 tensorflow==1.9.0
