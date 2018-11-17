@@ -12,73 +12,15 @@ from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
 
 from data_utils import DataSets, datasets
+
 from models.msrn_torch import MSRN
 from models.densenet import DenseNet
-from utils import ycrcb2rgb
 
-
-def test_dense(testing_data_loader,
-               optimizer,
-               model,
-               criterion,
-               epoch,
-               test_log,
-               GPU=True):
-    model.eval()
-    test_loss = 0
-    incorrect = 0
-    for data, target in testing_data_loader:
-        if GPU:
-            data, target = data.cuda(), target.cuda()
-
-        data, target = Variable(data, volatile=True), Variable(target)
-        output = model(data)
-        test_loss += nn.functional.nll_loss(output, target).item()
-        pred = output.data.max(1)[1]
-        incorrect += pred.ne(target.data).cpu().sum()
-
-    test_loss /= len(testing_data_loader)
-    nTotal = len(testing_data_loader.dataset)
-    err = 100. * incorrect / nTotal
-    print('\nTest set: Average loss: {:.4f}, Error: {}/{} ({:.0f}%)\n'.format(
-        test_loss, incorrect, nTotal, err))
-
-    test_log.write('{},{:.4f},{:.0f}\n'.format(epoch, test_loss, err))
-    test_log.flush()
-
-
-def test_msrn(testing_data_loader,
-              optimizer,
-              model,
-              criterion,
-              epoch,
-              test_log,
-              GPU=True,
-              discriminator=None):
-    model.eval()
-    test_loss = 0
-    for batch in testing_data_loader:
-        target_loc = len(batch) - 2 if discriminator else len(batch) - 1
-        data = batch[0]
-        if discriminator:
-            data, _ = adverstial_training(batch, discriminator)
-        target = batch[target_loc]
-
-        if GPU:
-            data, target = data.cuda(), target.cuda()
-
-        data, target = Variable(data), Variable(target)
-
-        output = model(data)
-        test_loss += nn.L1Loss(
-            reduction='elementwise_mean')(
-            output, target).item()
-
-    test_loss /= len(testing_data_loader)
-    print('\nTest set: Average loss: {:.4f}\n'.format(test_loss))
-
-    test_log.write('{},{:.4f}\n'.format(epoch, test_loss))
-    test_log.flush()
+from test import (
+    test_msrn,
+    test_dense,
+    adverstial_training,
+)
 
 
 def main(
@@ -87,6 +29,7 @@ def main(
         lr=0.0001,
         momentum=0.9,
         weight_decay=1e-4,
+        batch_size=32,
         model_name="msrn",
         optimizer="adam"):
 
@@ -101,7 +44,7 @@ def main(
     # loading all of the data
     training_data_loader = DataLoader(
         dataset=DataSets(dense=dense),
-        batch_size=32)
+        batch_size=batch_size)
 
     testing_data_loader = DataLoader(
         dataset=DataSets(dense=dense, dataset='test'),
@@ -178,10 +121,13 @@ def main(
     # Loggering the training loss
     if not os.path.isdir(log_folder):
         os.makedirs(log_folder)
+
     model.name = model_name
-    train_log = open(os.path.join(log_folder, 'train.csv'), 'wr')
-    test_log = open(os.path.join(log_folder, 'test.csv'), 'wr')
-    val_log = open(os.path.join(log_folder, 'val.csv'), 'wr')
+
+    train_log = open(os.path.join(log_folder, 'train.csv'), 'w')
+    test_log = open(os.path.join(log_folder, 'test.csv'), 'w')
+    val_log = open(os.path.join(log_folder, 'val.csv'), 'w')
+
     # Training in numbers of epochs
     for epoch in range(0, epochs):
         train(
@@ -192,7 +138,7 @@ def main(
             epoch,
             train_log,
             GPU,
-            discriminator if discriminator else None)  # if running on 64
+            discriminator if discriminator else None)  # if running on 64`
         # densenet
         print('testing the model')
         if model_name == "densenet":
@@ -237,17 +183,12 @@ def load_model(model_dir, epochs=20):
         print(
             "= loading pretrianed model '{}' epochs {} ".format(
                 model_dir, epochs))
-        weights = torch.load(model_path)
+        weights = torch.load(
+            model_path,
+            map_location=torch.device('cpu'))
         return weights
     else:
         raise FileNotFoundError("= no model found at '{}'".format(model_path))
-
-
-def adverstial_training(batch, discrminator):
-    x, cr, cb, y, _ = batch
-    y_disc = discrminator.forward(x)
-    X_disc = torch.from_numpy(ycrcb2rgb(y_disc, cr, cb)).float()
-    return X_disc, y
 
 
 def train(
@@ -272,9 +213,8 @@ def train(
         except FileNotFoundError:
             raise FileNotFoundError(
                 "No pretrainied Model Found. Please trained MSRN first")
-
-        discrminator = nn.DataParallel(discrminator).cuda()
-        discrminator.load_state_dict(weights['model'].state_dict())
+        discriminator = nn.DataParallel(discriminator).cuda()
+        discriminator.load_state_dict(weights['model'].state_dict())
 
     for iteration, batch in enumerate(training_data_loader, 1):
 
@@ -306,7 +246,7 @@ def train(
 
         if iteration % 10 == 0:
             print(
-                '=>Train Epoch {}: {:.2f} [{}/{} ({:.0f}%)]'.format(
+                '=>Train Epoch {}: {:.4f} [{}/{} ({:.0f}%)]'.format(
                     epoch,
                     progress,
                     nProcessed,
@@ -337,5 +277,5 @@ def msrn_loggering(loss, output, target, size, train_log):
 
 
 if __name__ == "__main__":
-    main(GPU=True, model_name='densenet64')
+    main(GPU=True, batch_size=32, model_name='densenet64')
     del datasets
