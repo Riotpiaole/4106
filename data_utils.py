@@ -1,4 +1,5 @@
 import os
+import sys
 import platform
 import cv2
 import numpy as np
@@ -151,14 +152,15 @@ class DataSets(Dataset):
             return torch.from_numpy(
                 self.data[index].transpose((2, 0, 1)).copy()
             ).float(), self.label[index]
-        y, cr, cb = rgb_to_ycrcb_channel_first(
+        y, cr, cb, label = rgb_to_ycrcb_channel_first(
             self.data[index, :, :, :],
-            upscale=1)
-        y_label, _, _ = rgb_to_ycrcb_channel_first(
-            self.label[index, :, :, :])
-        return torch.from_numpy(y).float(), cr, cb,\
+            upscale=2)
+
+        return torch.from_numpy(y).float(),\
+            cr,\
+            cb,\
             self.classes[index],\
-            torch.from_numpy(y_label).float()
+            torch.from_numpy(label).float()
 
     def __len__(self):
         return self.data.shape[0]

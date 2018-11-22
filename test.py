@@ -1,3 +1,4 @@
+import sys
 import torch
 
 import torch.nn as nn
@@ -40,7 +41,9 @@ def test_dense(testing_data_loader,
     print('\nTest set: Average loss: {:.4f}, Error: {}/{} ({:.0f}%)\n'.format(
         test_loss, incorrect, nTotal, err))
 
-    test_log.write('{},{:.4f},{:.0f}\n'.format(epoch, test_loss, err))
+    test_log.write(
+        '{},Loss:{:.4f},Error:{:.0f}\n'.format(
+            epoch, test_loss, err))
     test_log.flush()
 
 
@@ -50,7 +53,7 @@ def test_msrn(testing_data_loader,
               criterion,
               epoch,
               test_log,
-              GPU=True,
+              GPU=False,
               discriminator=None):
 
     model.eval()
@@ -63,11 +66,12 @@ def test_msrn(testing_data_loader,
             data, _ = adverstial_training(batch, discriminator)
 
         target = batch[target_loc]
-        data, target = Variable(data), Variable(target)
+        data, target = Variable(data), Variable(target, requires_grad=False)
         if GPU:
             data, target = data.cuda(), target.cuda()
 
         output = model(data)
+
         if model.name == "densenet64":
             test_loss += nn.functional.nll_loss(output, target).item()
             pred = output.data.max(1)[1]
@@ -77,16 +81,22 @@ def test_msrn(testing_data_loader,
             err = 100. * incorrect / nTotal
             print(
                 '\nTest set: Average loss: {:.4f}, Error: {}/{} ({:.0f}%)\n'.format(
-                    test_loss, incorrect, nTotal, err))
+                    test_loss,
+                    incorrect,
+                    nTotal,
+                    err),
+                end="\r")
 
-            test_log.write('{},{:.4f},{:.0f}\n'.format(epoch, test_loss, err))
+            test_log.write(
+                '{},Loss{:.4f},Error{:.0f}\n'.format(
+                    epoch, test_loss, err))
 
         else:
-            test_loss += nn.L1Loss(
+            test_loss = nn.L1Loss(
                 reduction='elementwise_mean')(
                 output, target)
+            print(
+                '\nTest set: Average loss: {:.4f}\n'.format(test_loss),
+                end="\r")
 
-            test_loss /= len(testing_data_loader)
-            print('\nTest set: Average loss: {:.4f}\n'.format(test_loss))
-
-            test_log.write('{},{:.4f}\n'.format(epoch, test_loss))
+            test_log.write('{},Loss{:.4f}\n'.format(epoch, test_loss))

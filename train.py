@@ -30,6 +30,7 @@ def main(
         momentum=0.9,
         weight_decay=1e-4,
         batch_size=32,
+        start_epochs=0,
         model_name="msrn",
         optimizer="adam"):
 
@@ -123,13 +124,17 @@ def main(
         os.makedirs(log_folder)
 
     model.name = model_name
+    append_write ='w' if os.path.exists(log_folder) else 'a'
 
-    train_log = open(os.path.join(log_folder, 'train.csv'), 'w')
-    test_log = open(os.path.join(log_folder, 'test.csv'), 'w')
-    val_log = open(os.path.join(log_folder, 'val.csv'), 'w')
+    train_log = open(os.path.join(log_folder, 'train.csv'), append_write)
+    test_log = open(os.path.join(log_folder, 'test.csv'), append_write)
+    val_log = open(os.path.join(log_folder, 'val.csv'), append_write)
+
+    if start_epochs > 0:
+        model = load_model(model, model_name , start_epochs+1)
 
     # Training in numbers of epochs
-    for epoch in range(0, epochs):
+    for epoch in range(start_epochs, epochs):
         train(
             training_data_loader,
             optimizer,
@@ -146,6 +151,7 @@ def main(
                        optimizer,
                        model,
                        criterion,
+
                        epoch,
                        test_log,
                        GPU)
@@ -177,18 +183,17 @@ def save_checkpoint(model, epoch, model_dir):
     print("Checkpoint saved to {} ".format(model_out_path))
 
 
-def load_model(model_dir, epochs=20):
+def load_model(model,model_dir, epochs=10):
     model_path = "Weights/" + model_dir + "/" + str(epochs - 1) + ".pth"
-    if os.path.isfile(model_path):
-        print(
-            "= loading pretrianed model '{}' epochs {} ".format(
-                model_dir, epochs))
-        weights = torch.load(
-            model_path,
-            map_location=torch.device('cpu'))
-        return weights
-    else:
-        raise FileNotFoundError("= no model found at '{}'".format(model_path))
+    assert os.path.isfile(model_path) , "= no model found at '{}'".format(model_path)
+    print(
+        "= loading pretrianed model '{}' epochs {} ".format(
+            model_dir, epochs))
+    weights = torch.load(
+        model_path,
+        map_location=torch.device('cpu'))
+    model.load_state_dict(weights['model'].state_dict())
+    return model
 
 
 def train(
@@ -209,12 +214,11 @@ def train(
     if discriminator:
         # loading model_weights
         try:
-            weights = load_model('msrn')
+            discriminator = nn.DataParallel(discriminator).cuda()
+            discriminator = load_model(discriminator,'msrn')
         except FileNotFoundError:
             raise FileNotFoundError(
                 "No pretrainied Model Found. Please trained MSRN first")
-        discriminator = nn.DataParallel(discriminator).cuda()
-        discriminator.load_state_dict(weights['model'].state_dict())
 
     for iteration, batch in enumerate(training_data_loader, 1):
 
@@ -234,7 +238,6 @@ def train(
             label = label.cuda()
 
         output = model(input)
-
         loss = criterion(output, label)
 
         # backward propagation
@@ -268,7 +271,7 @@ def dense_loggering(loss, output, target, size, train_log):
     err = 100. * incorrect / size
     print(' Loss {:.6f} Error {:.6f}'.format(
         loss.item(), err), end="\r")
-    train_log.write('{},{}\n'.format(loss.item(), err))
+    train_log.write('Loss:{},Error:{}\n'.format(loss.item(), err))
 
 
 def msrn_loggering(loss, output, target, size, train_log):
@@ -277,5 +280,5 @@ def msrn_loggering(loss, output, target, size, train_log):
 
 
 if __name__ == "__main__":
-    main(GPU=True, batch_size=32, model_name='densenet64')
+    main(GPU=True, batch_size=128, start_epochs=566,model_name='msrn', epochs=10000)
     del datasets

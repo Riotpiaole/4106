@@ -87,8 +87,8 @@ def rgb_to_ycrcb_channel_first(image, upscale=2):
         cv2.COLOR_RGB2YCrCb)
     y, Cr, Cb = np.dsplit((yCrCb_image), 3)
     h, w = y.shape[:2]
-    y = np.array([cv2.resize(y, (h * upscale, w * upscale))])
-    return y.astype(np.float64), Cr, Cb
+    y_train = np.array([cv2.resize(y, (h // 2, w // 2))])
+    return y_train.astype(np.float64), Cr, Cb, y.transpose((2, 0, 1))
 
 
 def ycrcb2rgb(yf, cr, cb):
@@ -100,8 +100,6 @@ def ycrcb2rgb(yf, cr, cb):
         cb = cb_c.detach().cpu().numpy()
 
         y = y.clip(0, 255).astype(np.uint8)
-        cr = np.array([cv2.resize(cr, (y.shape[1:]))])
-        cb = np.array([cv2.resize(cb, (y.shape[1:]))])
 
         image = np.vstack((y, cb, cr)).astype(np.float32)
         image -= (255.0 / 2)

@@ -159,4 +159,3 @@ class MSRN(nn.Module):
 if __name__ == "__main__":
     model = MSRN()
     model.summary()
-    # summary(model,(1,32,32))

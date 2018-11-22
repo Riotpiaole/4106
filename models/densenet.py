@@ -130,15 +130,15 @@ class DenseNet(nn.Module):
         out = self.dense3(out)
         out = self.bn1(out)
         out = F.relu(out)
-        out = F.avg_pool2d(out, self.upscale)
+        out = F.avg_pool2d(out, 8)
         out = torch.squeeze(out)
         out = F.log_softmax(self.fc(out), dim=1)
         return out
 
     def summary(self):
-        image_rec =32*self.upscale//8
+        image_rec = 32 * self.upscale // 8
         print(self.upscale)
-        input_size=(3, image_rec , image_rec)
+        input_size = (3, image_rec, image_rec)
         return summary(self, input_size)
 
 
