@@ -11,7 +11,9 @@ def adverstial_training(batch, discrminator):
     x, cr, cb, y, _ = batch
     x = x.cuda()
     y_disc = discrminator.forward(x)
-    X_disc = torch.from_numpy(ycrcb2rgb(y_disc, cr, cb)).float()
+    X_disc = torch.from_numpy(
+        ycrcb2rgb(y_disc, cr, cb)
+    ).float()
     return X_disc, y
 
 

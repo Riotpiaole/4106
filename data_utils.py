@@ -10,14 +10,8 @@ from multiprocessing import Process
 from torch.utils.data import Dataset
 from six.moves import cPickle as pickle
 
-from utils import (
-    showImage,
-    rgb_to_bgr,
-    bgr_to_rgb,
-    bgr_to_ycrcb,
-    multi_process_wrapper,
-    rgb_to_ycrcb_channel_first,
-)
+from utils import rgb_to_ycrcb_channel_first
+
 
 global datasets
 
@@ -62,17 +56,16 @@ def normalizes(data, subtract_mean=True, channel_first=True):
     X_train, X_test, X_val = data['X_train'], data['X_test'], data['X_val']
     # Normalize the data: subtract the mean image
     if subtract_mean:
-
         mean_image = np.mean(X_train, axis=0)
         X_train -= mean_image
         X_val -= mean_image
         X_test -= mean_image
 
         # performan standard deviation and normalization
-        # std_image = np.mean(X_train, axis=0)
-        # X_train /= std_image
-        # X_val /= std_image
-        # X_test /= std_image
+        std_image = np.std(X_train, axis=0)
+        X_train /= std_image
+        X_val /= std_image
+        X_test /= std_image
 
     # Transpose so that channels come first
     if channel_first:
@@ -147,20 +140,22 @@ class DataSets(Dataset):
 
     def __getitem__(self, index):
         if self.dense:
-            # label = np.array([0 for i in range(10)])
-            # label[self.label[index]] = 1
             return torch.from_numpy(
                 self.data[index].transpose((2, 0, 1)).copy()
             ).float(), self.label[index]
-        y, cr, cb, label = rgb_to_ycrcb_channel_first(
-            self.data[index, :, :, :],
-            upscale=2)
+
+        # output
+            #  y as downscale by 2 images
+            #  cr and cb channels of origin image
+            #  naive is downscale by 2 and upscale by 2 y
+        y, cr, cb, naive = rgb_to_ycrcb_channel_first(
+            self.data[index, :, :, :])
 
         return torch.from_numpy(y).float(),\
             cr,\
             cb,\
             self.classes[index],\
-            torch.from_numpy(label).float()
+            torch.from_numpy(naive).float()
 
     def __len__(self):
         return self.data.shape[0]
@@ -169,21 +164,13 @@ class DataSets(Dataset):
 # Testing
 if __name__ == "__main__":
     # testing for obtain densenet dataset
-    dataset = DataSets(dense=True)
-    x, y = dataset.__getitem__(10)
-    print(x.shape, y.shape, len(dataset))
+    # dataset = DataSets(dense=True)
+    # x, y = dataset.__getitem__(10)
+    # print(np.unique(x.detach().cpu().numpy()))
+    # print(x.shape, y.shape, len(dataset))
 
     # testing for obtain msrn dataset
     msrn_dataset = DataSets(dense=False)
-    x, cr, cb, y = msrn_dataset.__getitem__(10)
-    print(x.shape, y.shape, len(msrn_dataset))
-
-    msrn_dataset = DataSets(dense=False, dataset="test")
-    x, cr, cb, y = msrn_dataset.__getitem__(10)
-    print(x.shape, y.shape, len(msrn_dataset))
-
-    msrn_dataset = DataSets(dense=False, dataset="val")
-    x, cr, cb, y = msrn_dataset.__getitem__(10)
-    print(x.shape, y.shape, len(msrn_dataset))
-    # testing for obtain validation dataset
+    x, cr, cb, category, naive = msrn_dataset.__getitem__(10)
+    print(np.unique(x.detach().cpu().numpy()))
     del datasets

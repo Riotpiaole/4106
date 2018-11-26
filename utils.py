@@ -1,7 +1,7 @@
 import sys
 import cv2
+import torch
 import numpy as np
-from PIL import Image
 from multiprocessing import Process
 
 
@@ -80,7 +80,7 @@ def rgb_to_ycrcb(img):
     return bgr_to_ycrcb(rgb_to_bgr(img))
 
 
-def rgb_to_ycrcb_channel_first(image, upscale=2):
+def rgb_to_ycrcb_channel_first(image):
 
     yCrCb_image = cv2.cvtColor(
         image.astype(np.uint8),
@@ -88,21 +88,62 @@ def rgb_to_ycrcb_channel_first(image, upscale=2):
     y, Cr, Cb = np.dsplit((yCrCb_image), 3)
     h, w = y.shape[:2]
     y_train = np.array([cv2.resize(y, (h // 2, w // 2))])
-    return y_train.astype(np.float64), Cr, Cb, y.transpose((2, 0, 1))
+    naive = cv2.resize(
+        # shrink the image by it's sizes//2
+        cv2.resize(image, y_train.shape[:2]),
+        y.shape[:2])  # Upscale the image by twice to present the result
+
+    naive_mean = np.mean(naive, axis=0).astype(np.float32)
+    naive_std = np.std(naive, axis=0).astype(np.float32)
+
+    naive -= naive_mean
+    naive /= naive_std
+
+    return y_train.astype(np.float64), Cr, Cb, naive.astype(np.float32)
 
 
 def ycrcb2rgb(yf, cr, cb):
-    result = []
-    for (y_c, cr_c, cb_c) in zip(yf, cr, cb):
+    # detach from cuda into numpy
+    yf = yf.detach().cpu().numpy()
+    cr = cr.detach().cpu().numpy()
+    cb = cb.detach().cpu().numpy()
 
-        y = y_c.detach().cpu().numpy() * 255.0
-        cr = cr_c.detach().cpu().numpy()
-        cb = cb_c.detach().cpu().numpy()
+    y = yf.clip(0, 255).astype(np.uint8)
+    result = np.hstack(
+        (y, cr, cb)
+    ).astype(np.float32)
 
-        y = y.clip(0, 255).astype(np.uint8)
+    result /= 255
 
-        image = np.vstack((y, cb, cr)).astype(np.float32)
-        image -= (255.0 / 2)
+    return result
 
-        result.append(image)
-    return np.array(result)
+
+def toTensor(arr, cuda=False):
+    val = torch.from_numpy(arr)
+    return val.cuda() if cuda else val
+
+
+def visualizes(image, model):
+    y, cr, cb, y_origin = rgb_to_ycrcb_channel_first(image)
+    y = np.array([y])
+
+    y = toTensor(y, True)
+    y_pred = model.forward(y.float()).detach().cpu().numpy()
+    y_pred = y_pred[0].reshape(cb.shape)
+
+    result = np.dstack((y_pred, cr, cb)).clip(0, 255)
+    naive = cv2.resize(
+        # shrink the image by it's sizes//2
+        cv2.resize(image, y.shape[2:]),
+        result.shape[:2])  # Upscale the image by twice to present the result
+    return naive, cv2.cvtColor(result.astype(np.uint8), cv2.COLOR_YCrCb2RGB)
+
+
+if __name__ == "__main__":
+    test = np.ones((30, 3, 32, 32)).astype(np.uint8)
+    y, cr, cb = np.split(test, 3, 1)
+    y = torch.from_numpy(y)
+    cr = torch.from_numpy(cr)
+    cb = torch.from_numpy(cb)
+    image = ycrcb2rgb(y, cr, cb)
+    print(image.shape)

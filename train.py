@@ -64,7 +64,7 @@ def main(
         criterion = nn.L1Loss(reduction='elementwise_mean')
         print(" L1 loss")
     elif model_name == "densenet64":
-        model = DenseNet(upscale=2)
+        model = DenseNet()
         discriminator = MSRN()
         criterion = nn.functional.nll_loss
     elif model_name == "densenet":
@@ -124,14 +124,14 @@ def main(
         os.makedirs(log_folder)
 
     model.name = model_name
-    append_write ='w' if os.path.exists(log_folder) else 'a'
+    append_write = 'w' if os.path.exists(log_folder) else 'a'
 
     train_log = open(os.path.join(log_folder, 'train.csv'), append_write)
     test_log = open(os.path.join(log_folder, 'test.csv'), append_write)
     val_log = open(os.path.join(log_folder, 'val.csv'), append_write)
 
     if start_epochs > 0:
-        model = load_model(model, model_name , start_epochs+1)
+        model = load_model(model, model_name, start_epochs + 1)
 
     # Training in numbers of epochs
     for epoch in range(start_epochs, epochs):
@@ -183,9 +183,10 @@ def save_checkpoint(model, epoch, model_dir):
     print("Checkpoint saved to {} ".format(model_out_path))
 
 
-def load_model(model,model_dir, epochs=10):
+def load_model(model, model_dir, epochs=1158):
     model_path = "Weights/" + model_dir + "/" + str(epochs - 1) + ".pth"
-    assert os.path.isfile(model_path) , "= no model found at '{}'".format(model_path)
+    assert os.path.isfile(
+        model_path), "= no model found at '{}'".format(model_path)
     print(
         "= loading pretrianed model '{}' epochs {} ".format(
             model_dir, epochs))
@@ -215,7 +216,7 @@ def train(
         # loading model_weights
         try:
             discriminator = nn.DataParallel(discriminator).cuda()
-            discriminator = load_model(discriminator,'msrn')
+            discriminator = load_model(discriminator, 'msrn')
         except FileNotFoundError:
             raise FileNotFoundError(
                 "No pretrainied Model Found. Please trained MSRN first")
@@ -280,5 +281,10 @@ def msrn_loggering(loss, output, target, size, train_log):
 
 
 if __name__ == "__main__":
-    main(GPU=True, batch_size=128, start_epochs=566,model_name='msrn', epochs=10000)
+    main(
+        GPU=True,
+        batch_size=64,
+        start_epochs=0,
+        model_name='dense64',
+        epochs=20)
     del datasets

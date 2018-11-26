@@ -150,6 +150,5 @@ if __name__ == "__main__":
         reduction=0.50,
         nClasses=10,
         bottleneck=True,
-        upscale=2
     ).to(device)
     model.summary()
