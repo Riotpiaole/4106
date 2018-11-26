@@ -105,8 +105,8 @@ def rgb_to_ycrcb_channel_first(image):
 def ycrcb2rgb(yf, cr, cb):
     # detach from cuda into numpy
     yf = yf.detach().cpu().numpy()
-    cr = cr.detach().cpu().numpy()
-    cb = cb.detach().cpu().numpy()
+    cr = cr.detach().cpu().numpy().transpose((0, 3, 1, 2))
+    cb = cb.detach().cpu().numpy().transpose((0, 3, 1, 2))
 
     y = yf.clip(0, 255).astype(np.uint8)
     result = np.hstack(

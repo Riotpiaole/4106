@@ -3,6 +3,7 @@ import sys
 
 import argparse
 import torch
+import numpy as np
 
 import torch.nn as nn
 import torch.optim as optim
@@ -22,6 +23,9 @@ from test import (
     adverstial_training,
 )
 
+import numpy as np
+np.seterr(divide='ignore', invalid='ignore')
+
 
 def main(
         GPU=True,
@@ -32,7 +36,8 @@ def main(
         batch_size=32,
         start_epochs=0,
         model_name="msrn",
-        optimizer="adam"):
+        optimizer="adam",
+        naive=False):
 
     assert model_name.lower() in [
         "msrn", "densenet", "densenet64"], "Model not available only support msrn and densenet"
@@ -143,7 +148,8 @@ def main(
             epoch,
             train_log,
             GPU,
-            discriminator if discriminator else None)  # if running on 64`
+            discriminator if discriminator else None,
+            naive)  # if running on 64`
         # densenet
         print('testing the model')
         if model_name == "densenet":
@@ -205,7 +211,8 @@ def train(
         epoch,
         train_log,
         GPU=True,
-        discriminator=None):
+        discriminator=None,
+        naive=False):
     print("epoch =", epoch, "lr =", optimizer.param_groups[0]["lr"])
 
     model.train()
@@ -240,7 +247,6 @@ def train(
 
         output = model(input)
         loss = criterion(output, label)
-
         # backward propagation
         optimizer.zero_grad()
         loss.backward()
@@ -272,12 +278,12 @@ def dense_loggering(loss, output, target, size, train_log):
     err = 100. * incorrect / size
     print(' Loss {:.6f} Error {:.6f}'.format(
         loss.item(), err), end="\r")
-    train_log.write('Loss:{},Error:{}\n'.format(loss.item(), err))
+    train_log.write('{},{}\n'.format(loss.item(), err))
 
 
 def msrn_loggering(loss, output, target, size, train_log):
     print(" Loss: {:.6f}".format(loss.item()), end="\r")
-    train_log.write(',:Loss{:.6f}\n'.format(loss.item()))
+    train_log.write(',{:.6f}\n'.format(loss.item()))
 
 
 if __name__ == "__main__":
@@ -285,6 +291,6 @@ if __name__ == "__main__":
         GPU=True,
         batch_size=64,
         start_epochs=0,
-        model_name='dense64',
+        model_name='densenet64',
         epochs=20)
     del datasets

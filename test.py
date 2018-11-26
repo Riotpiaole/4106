@@ -78,21 +78,6 @@ def test_msrn(testing_data_loader,
             test_loss += nn.functional.nll_loss(output, target).item()
             pred = output.data.max(1)[1]
             incorrect += pred.ne(target.data).cpu().sum()
-            test_loss /= len(testing_data_loader)
-            nTotal = len(testing_data_loader.dataset)
-            err = 100. * incorrect / nTotal
-            print(
-                '\nTest set: Average loss: {:.4f}, Error: {}/{} ({:.0f}%)\n'.format(
-                    test_loss,
-                    incorrect,
-                    nTotal,
-                    err),
-                end="\r")
-
-            test_log.write(
-                '{},Loss{:.4f},Error{:.0f}\n'.format(
-                    epoch, test_loss, err))
-
         else:
             test_loss = nn.L1Loss(
                 reduction='elementwise_mean')(
@@ -100,5 +85,20 @@ def test_msrn(testing_data_loader,
             print(
                 '\nTest set: Average loss: {:.4f}\n'.format(test_loss),
                 end="\r")
-
             test_log.write('{},Loss{:.4f}\n'.format(epoch, test_loss))
+
+    if model.name == 'densenet64':
+        test_loss /= len(testing_data_loader)
+        nTotal = len(testing_data_loader.dataset)
+        err = 100. * incorrect / nTotal
+        print(
+            '\nTest set: Average loss: {:.4f}, Error: {}/{} ({:.0f}%)\n'.format(
+                test_loss,
+                incorrect,
+                nTotal,
+                err),
+            end="\r")
+
+        test_log.write(
+            '{},Loss{:.4f},Error{:.0f}\n'.format(
+                epoch, test_loss, err))

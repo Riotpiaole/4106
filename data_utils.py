@@ -135,13 +135,20 @@ class DataSets(Dataset):
         self.data = datasets['X_' + dataset].copy()
         self.label = datasets['X_' + dataset].copy() if not dense \
             else datasets['y_' + dataset].copy()
+
         if not dense:
             self.classes = datasets['y_' + dataset].copy()
 
     def __getitem__(self, index):
         if self.dense:
+            h, w = self.data[index].shape[:2]
+            image = cv2.resize(
+                cv2.resize(
+                    self.data[index], (h // 2, w // 2)), (h, w))
+            image = image.transpose((2, 0, 1)).copy()
+
             return torch.from_numpy(
-                self.data[index].transpose((2, 0, 1)).copy()
+                image
             ).float(), self.label[index]
 
         # output

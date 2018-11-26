@@ -18,6 +18,8 @@ import math
 global pool_size
 
 
+# code retrieved from https://github.com/bamos/densenet.pytorch
+
 class Bottleneck(nn.Module):
     def __init__(self, nChannels, growthRate):
         super(Bottleneck, self).__init__()
@@ -136,8 +138,7 @@ class DenseNet(nn.Module):
         return out
 
     def summary(self):
-        image_rec = 32 * self.upscale // 8
-        print(self.upscale)
+        image_rec = 32
         input_size = (3, image_rec, image_rec)
         return summary(self, input_size)
 
