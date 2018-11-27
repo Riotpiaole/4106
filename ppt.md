@@ -32,7 +32,7 @@ output:
 # Results
 
 * Higher Resolutions means better feature points
-![super Resolutions](figures/sr_show_case.png)
+![super Resolutions](figures/SR_show_case.png)
 
 ----
 
