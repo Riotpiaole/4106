@@ -196,9 +196,7 @@ def load_model(model, model_dir, epochs=1158):
     print(
         "= loading pretrianed model '{}' epochs {} ".format(
             model_dir, epochs))
-    weights = torch.load(
-        model_path,
-        map_location=torch.device('cpu'))
+    weights = torch.load(model_path)
     model.load_state_dict(weights['model'].state_dict())
     return model
 

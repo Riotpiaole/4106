@@ -100,5 +100,6 @@ def test_msrn(testing_data_loader,
             end="\r")
 
         test_log.write(
-            '{},Loss{:.4f},Error{:.0f}\n'.format(
+            '{},{:.4f},{:.0f}\n'.format(
                 epoch, test_loss, err))
+    test_log.flush()
