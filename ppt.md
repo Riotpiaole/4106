@@ -1,17 +1,57 @@
-# Presentation
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Super Resolution in Classification
 
-1. talk about overview of the project
-    2. michael
+- Target Audiences and Super Resolutions
+- Project OverView
+- Results and Challenges
 
-2. discuss the challenges over the project
-    1. Computational Expensive: learning curve.
-    2. Image resolutions: Cifar 10 dataset have low resolutions image.
-        - Comparison result.
-    3. More epochs
-        - Shown by plotting results
-3. give preliminary result
-    4.
-4. what you have learned
-    1.
+----
 
-5. specified the interests the audiences to your topic
+# Target Aduiences And Super Resolutions
+
+1. What is SuperResolutions
+2. What is its application and relation to AI
+
+----
+
+# Project OverView
+
+- What are we doing on this project?
+	- so three types of images we doing it for presentation.
+- What kind of networks are we using
+	- MSRN
+	- DenseNet
+- How do we show the results ?
+
+----
+
+# Results
+
+* Higher Resolutions means better feature points
+![super Resolutions](figures/sr_show_case.png)
+
+----
+
+# Classification Results
+
+Naive approaches            | SR approaches
+:-------------------------:|:-------------------------:
+![naive](./figures/naive_logs.png)  |  ![sr](./figures/sr_logs.png)
+
+----
+
+# Challenges
+
+* Computation Resources
+
+![msrn learning curve](figures/msrn_learning_curve.png)
+
+----
+
+# MSRN is really expensive to train
+
+![sr_show](./figures/MSRN_learning_result.png)
