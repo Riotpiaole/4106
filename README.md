@@ -4,7 +4,7 @@
 
 * The project can be explained in following images
 
-![project overview](project_overview.jpeg)
+![project overview](figures/project_overview.jpeg)
 
 ## Getting Started
 
