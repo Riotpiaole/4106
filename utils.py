@@ -140,10 +140,12 @@ def visualizes(image, model):
 
 
 if __name__ == "__main__":
-    test = np.ones((30, 3, 32, 32)).astype(np.uint8)
-    y, cr, cb = np.split(test, 3, 1)
-    y = torch.from_numpy(y)
-    cr = torch.from_numpy(cr)
-    cb = torch.from_numpy(cb)
-    image = ycrcb2rgb(y, cr, cb)
-    print(image.shape)
+    img = np.zeros((400, 400, 3), dtype = "uint8")
+    cv2.rectangle(img, (0, 0), (200, 200), (0, 255, 0), 5)
+    b , g , r = np.dsplit(img)
+
+    showImage(img)
+    # Creating line
+
+
+
