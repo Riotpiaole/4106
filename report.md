@@ -42,11 +42,18 @@ output:
 
 * MSRN is built by multiple residual network block to perform lower resolution feature extraction on **y** channel of the input which formatted in color space **yCbCr**[3]. Then concatenated all of the filters and feeded to a **Sub-Pixel Convolutional layer** to reconstruct a higher resolution image. Sub-pixeling Convolutional Neural Network is network structure learn to upscale the lower resolution image to a higher resolution output by estimating resolution arangement based on ground truth [4]. This enable MSRN to generate super resolution image based on ground truth.
 
+  * ![msrn network structure](figures/MSRN_model.png)
+    * _**figure 1.1**, this show the architecture of MSRN it consists of n block of residual layer and reconstructed by a sub-pixel convolutional layer in reconstruction layer_
+
 * The following function $L$ is the cost function of training an MSRN. $I_i^{LR}$ is y channel of naive downscaled images in **yCrCb** colorspace. $I_i^{HR}$ is y channel of the origin image in **yCrCb** and $F_\theta$ is the forward pass of the MSRN. This allow the network to evaluate how far are the features between pixle spaces which allow back propagation to derivate gradient to optimizes the network.
 
   - $(2) L(F_\theta (I_i^{LR}, I_i^{HR})) =||F_\theta (I_i^{LR} - I_i^{HR}) ||_1$[3]
 
 * In this experiment, MSRN is trained with 49,000 training images with 1,000 of test images. With `L1loss` (2) function, MSRN is able generated feature perserving image which further enhanced classification performances.
+
+
+* ![msrn result](./figures/MSRN_learning_result.png)
+  * _**figures 1.2**, this show the learning steapness of **MSRN**. It show 4 test image that predicited by different epoches._
 
 ### 2. Naive Resized Image preprocessing
 
@@ -57,6 +64,8 @@ output:
 * The algorithm started with input image $X$ has shape of $(h_x, w_x)$ and output $y$ image is $(h_y,w_y)$. First compute the scaling factor by computing $(\frac{h_y}{h_x} , \frac{w_y}{w_x})$ and mulitplied the identiy matrix $I_n$ obtain the scaling matrix $M = \begin{bmatrix} \frac{h_y}{h_x} & 0\\ 0 & \frac{w_y}{w_x} \end{bmatrix}$ then computed $f:X \rightarrow \text{  }Mx \text{ } \rightarrow y$ to obtain image $Y_{downscale}$ [5].
 
 * In this approach, training and testing images will processed by this algorithm twice. First downscaling the image by half and upscale  once to origin sizes which perserves the same input size during classification. This allow this project to explorate the result of classification with different scaling preprocessing.
+
+* ![naive approaches](./figures/naive_approaches.png) _**figures  2.1**: present the resize prprocessing of this approach_
 
 ## 3. Result & Analysis
 
