@@ -38,7 +38,7 @@ output:
 
 * The implementation of this approach is [here](https://github.com/Riotpiaole/SR-MSRN-in-classification/blob/master/models/msrn_torch.py)
 
-* MSRN stands for **Multi-Scale Residual Network**, it is a supervisied learning model that learns to upscale the image from low resolution to a higher resolution. This network serves a purpose of scaling an image to a given ratio by perserves the key features such as line and shape.
+* MSRN stands for **Mult`i-Scale Residual Network**, it is a supervisied learning model that learns to upscale the image from low resolution to a higher resolution. This network serves a purpose of scaling an image to a given ratio by perserves the key features such as line and shape.
 
 * MSRN is built by multiple residual network block to perform lower resolution feature extraction on **y** channel of the input which formatted in color space **yCbCr**[3]. Then concatenated all of the filters and feeded to a **Sub-Pixel Convolutional layer** to reconstruct a higher resolution image. Sub-pixeling Convolutional Neural Network is network structure learn to upscale the lower resolution image to a higher resolution output by estimating resolution arangement based on ground truth [4]. This enable MSRN to generate super resolution image based on ground truth.
 
