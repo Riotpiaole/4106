@@ -1,14 +1,14 @@
 ---
 output:
-  html_document: default
   word_document: default
+  html_document: default
   pdf_document: default
 ---
 # Exploration Between Image resolutions and Classification
 
 ## Abstract
 
-* Traditional **Convolutional Neural Network** (CNN) is seperating the an image from other by adjusting the weights of multiple nodes. In specific, **Maximum Pooling Arthmeatic** is selecting the most triggered nodes to linearly distinguishing one image to another. For classification, a node implies the **pixels intensity** of the input. Thus it raises the hypothesis: **could a scaled lower resolution of an image might cause diffculities for classifier to properly label to a proper class**. This paper and implementation is a proof of concept toward this hypthesis.
+* Traditional **Convolutional Neural Network** (CNN) is seperating an image from other by adjusting the weights of multiple nodes. In specific, **Maximum Pooling Arthmeatic** is selecting the most triggered nodes to linearly distinguishing one image to another. For classification, a node implies the **pixels intensity** of the input. Thus it raises the hypothesis: **could a scaled lower resolution of an image might cause diffculities for classifier to properly label to a proper class**. This paper and implementation is a proof of concept toward this hypthesis.
 
 ## Project Overview
 
